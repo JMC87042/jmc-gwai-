@@ -1,155 +1,352 @@
-```html
-<script>
-    const API_URL = 'https://mixbyjmc.pythonanywhere.com/api';
+```html id="fullfix1"
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🐋 JMC Global Whale Intelligence</title>
 
-    async function loadAllData() {
-        try {
-            document.getElementById('status').textContent = '🔄 데이터 로딩 중...';
-
-            // 통계
-            const statsRes = await fetch(`${API_URL}/stats/summary`);
-            const stats = await statsRes.json();
-            updateStats(stats);
-
-            // 고래
-            const whalesRes = await fetch(`${API_URL}/whales/ranking?limit=10`);
-            const whalesData = await whalesRes.json();
-            displayWhales(whalesData);
-
-            // 호스트
-            const hostsRes = await fetch(`${API_URL}/hosts/ranking`);
-            const hostsData = await hostsRes.json();
-            displayHosts(hostsData);
-
-            // 타임라인
-            const timelineRes = await fetch(`${API_URL}/analysis/timeline?limit=10`);
-            const timelineData = await timelineRes.json();
-            displayTimeline(timelineData);
-
-            // 국가별 분석
-            const countryRes = await fetch(`${API_URL}/stats/by-country`);
-            const countryData = await countryRes.json();
-            displayCountryStats(countryData);
-
-            document.getElementById('status').textContent =
-                '✅ 데이터 로드 완료!';
-
-            document.getElementById('status').style.background =
-                'var(--success)';
-
-        } catch (error) {
-
-            console.error('오류:', error);
-
-            document.getElementById('status').textContent =
-                '❌ 데이터 로드 실패: ' + error.message;
-
-            document.getElementById('status').style.background =
-                'var(--warning)';
+    <style>
+        *{
+            margin:0;
+            padding:0;
+            box-sizing:border-box;
         }
-    }
 
-    function updateStats(data = {}) {
-        document.getElementById('stat-whales').textContent =
-            data.active_whales ?? 0;
+        body{
+            font-family:Arial,sans-serif;
+            background:#f5f5f5;
+            color:#333;
+        }
 
-        document.getElementById('stat-gifts').textContent =
-            `$${((data.total_gifts ?? 0) / 1000).toFixed(1)}K`;
+        .navbar{
+            background:#001f3f;
+            color:white;
+            padding:20px;
+        }
 
-        document.getElementById('stat-tx').textContent =
-            data.transaction_count ?? 0;
+        .container{
+            max-width:1200px;
+            margin:auto;
+            padding:20px;
+        }
 
-        document.getElementById('stat-avg').textContent =
-            `$${(data.average_gift ?? 0).toFixed(0)}`;
-    }
+        .status{
+            background:#2ecc40;
+            color:white;
+            padding:15px;
+            border-radius:8px;
+            margin-bottom:20px;
+            text-align:center;
+            font-weight:bold;
+        }
 
-    function displayWhales(whales = []) {
-        const tbody = document.getElementById('whales-body');
+        .refresh-btn{
+            padding:10px 20px;
+            border:none;
+            background:#0074d9;
+            color:white;
+            border-radius:6px;
+            cursor:pointer;
+            margin-bottom:20px;
+        }
 
-        tbody.innerHTML = whales.map((w, idx) => `
-            <tr>
-                <td>${idx === 0 ? '👑' : idx + 1}</td>
-                <td><strong>${w.nickname || w.name || '-'}</strong></td>
-                <td>${w.country || '-'}</td>
-                <td>$${(w.total_gifts_30d || w.total_amount || 0).toLocaleString()}</td>
-                <td>${w.host_count || 0}</td>
-                <td>$${(w.average_gift || 0).toFixed(0)}</td>
-            </tr>
-        `).join('');
+        .stats-grid{
+            display:grid;
+            grid-template-columns:repeat(auto-fit,minmax(200px,1fr));
+            gap:20px;
+            margin-bottom:30px;
+        }
 
-        document.getElementById('whales-loading').style.display = 'none';
-        document.getElementById('whales-table').style.display = 'table';
-    }
+        .stat-card{
+            background:white;
+            padding:20px;
+            border-radius:10px;
+            box-shadow:0 2px 8px rgba(0,0,0,0.1);
+            text-align:center;
+        }
 
-    function displayHosts(hosts = []) {
-        const tbody = document.getElementById('hosts-body');
+        .stat-label{
+            color:#666;
+            margin-bottom:10px;
+        }
 
-        tbody.innerHTML = hosts.map((h, idx) => `
-            <tr>
-                <td>${idx + 1}</td>
-                <td><strong>${h.nickname || h.name || '-'}</strong></td>
-                <td>${h.country || '-'}</td>
-                <td>${h.league || '-'}</td>
-                <td>$${(h.total_received || h.total_amount || 0).toLocaleString()}</td>
-                <td>${h.whale_count || 0}</td>
-            </tr>
-        `).join('');
+        .stat-value{
+            font-size:32px;
+            font-weight:bold;
+            color:#001f3f;
+        }
 
-        document.getElementById('hosts-loading').style.display = 'none';
-        document.getElementById('hosts-table').style.display = 'table';
-    }
+        .section{
+            background:white;
+            padding:20px;
+            border-radius:10px;
+            margin-bottom:30px;
+            box-shadow:0 2px 8px rgba(0,0,0,0.1);
+        }
 
-    function displayTimeline(data = []) {
-        const timeline = document.getElementById('timeline');
+        table{
+            width:100%;
+            border-collapse:collapse;
+        }
 
-        timeline.innerHTML = data.map(tx => `
-            <div class="timeline-item">
-                <div class="time">
-                    ⏰ ${tx.timestamp ? new Date(tx.timestamp).toLocaleTimeString() : '-'}
-                </div>
+        th,td{
+            padding:12px;
+            border-bottom:1px solid #ddd;
+            text-align:left;
+        }
 
-                <div class="content">
-                    <span class="whale-name">
-                        ${tx.whale_nickname || '-'}
-                    </span>
+        th{
+            background:#f0f0f0;
+        }
 
-                    <span>→</span>
+        .timeline-item{
+            background:#f9f9f9;
+            padding:15px;
+            border-left:4px solid #0074d9;
+            margin-bottom:10px;
+            border-radius:6px;
+        }
 
-                    <span class="host-name">
-                        ${tx.host_nickname || '-'}
-                    </span>
+        .footer{
+            text-align:center;
+            padding:30px;
+            color:#777;
+        }
+    </style>
+</head>
 
-                    <span class="amount">
-                        $${(tx.amount || 0).toLocaleString()}
-                    </span>
-                </div>
+<body>
+
+    <div class="navbar">
+        <h1>🐋 JMC Global Whale Intelligence</h1>
+        <p>TikTok Live 글로벌 고래 데이터 분석</p>
+    </div>
+
+    <div class="container">
+
+        <div class="status" id="status">
+            🔄 데이터 로딩 중...
+        </div>
+
+        <button class="refresh-btn" onclick="loadAllData()">
+            🔄 새로고침
+        </button>
+
+        <div class="stats-grid">
+
+            <div class="stat-card">
+                <div class="stat-label">활성 고래</div>
+                <div class="stat-value" id="stat-whales">0</div>
             </div>
-        `).join('');
 
-        document.getElementById('timeline-loading').style.display = 'none';
-        timeline.style.display = 'flex';
+            <div class="stat-card">
+                <div class="stat-label">총 기부액</div>
+                <div class="stat-value" id="stat-gifts">$0</div>
+            </div>
+
+            <div class="stat-card">
+                <div class="stat-label">거래 건수</div>
+                <div class="stat-value" id="stat-tx">0</div>
+            </div>
+
+            <div class="stat-card">
+                <div class="stat-label">평균 기부액</div>
+                <div class="stat-value" id="stat-avg">$0</div>
+            </div>
+
+        </div>
+
+        <div class="section">
+            <h2>🏆 고래 랭킹</h2>
+
+            <table>
+                <thead>
+                    <tr>
+                        <th>순위</th>
+                        <th>닉네임</th>
+                        <th>국가</th>
+                        <th>기부액</th>
+                    </tr>
+                </thead>
+
+                <tbody id="whales-body"></tbody>
+            </table>
+        </div>
+
+        <div class="section">
+            <h2>🎤 호스트 랭킹</h2>
+
+            <table>
+                <thead>
+                    <tr>
+                        <th>순위</th>
+                        <th>닉네임</th>
+                        <th>국가</th>
+                        <th>수익</th>
+                    </tr>
+                </thead>
+
+                <tbody id="hosts-body"></tbody>
+            </table>
+        </div>
+
+        <div class="section">
+            <h2>⚡ 실시간 타임라인</h2>
+
+            <div id="timeline"></div>
+        </div>
+
+        <div class="section">
+            <h2>🌍 국가별 분석</h2>
+
+            <table>
+                <thead>
+                    <tr>
+                        <th>국가</th>
+                        <th>고래 수</th>
+                        <th>총 기부액</th>
+                    </tr>
+                </thead>
+
+                <tbody id="stats-body"></tbody>
+            </table>
+        </div>
+
+    </div>
+
+    <div class="footer">
+        Flask API + PythonAnywhere + Vercel
+    </div>
+
+<script>
+const API_URL = 'https://mixbyjmc.pythonanywhere.com/api';
+
+async function loadAllData(){
+
+    try{
+
+        document.getElementById('status').textContent =
+            '🔄 데이터 로딩 중...';
+
+        // 통계
+        const statsRes = await fetch(`${API_URL}/stats/summary`);
+        const stats = await statsRes.json();
+
+        updateStats(stats);
+
+        // 고래
+        const whalesRes = await fetch(`${API_URL}/whales/ranking?limit=10`);
+        const whales = await whalesRes.json();
+
+        displayWhales(whales);
+
+        // 호스트
+        const hostsRes = await fetch(`${API_URL}/hosts/ranking`);
+        const hosts = await hostsRes.json();
+
+        displayHosts(hosts);
+
+        // 타임라인
+        const timelineRes = await fetch(`${API_URL}/analysis/timeline?limit=10`);
+        const timeline = await timelineRes.json();
+
+        displayTimeline(timeline);
+
+        // 국가별
+        const countryRes = await fetch(`${API_URL}/stats/by-country`);
+        const countries = await countryRes.json();
+
+        displayCountryStats(countries);
+
+        document.getElementById('status').textContent =
+            '✅ 데이터 로드 완료';
+
+    }catch(error){
+
+        console.error(error);
+
+        document.getElementById('status').textContent =
+            '❌ 오류: ' + error.message;
     }
+}
 
-    function displayCountryStats(data = []) {
-        const tbody = document.getElementById('stats-body');
+function updateStats(data = {}){
 
-        tbody.innerHTML = data.map(s => `
-            <tr>
-                <td><strong>${s.country || '-'}</strong></td>
-                <td>${s.whale_count || 0}</td>
-                <td>$${(s.total_gifts || 0).toLocaleString()}</td>
-                <td>${s.tx_count || 0}</td>
-            </tr>
-        `).join('');
+    document.getElementById('stat-whales').textContent =
+        data.active_whales ?? 0;
 
-        document.getElementById('stats-loading').style.display = 'none';
-        document.getElementById('stats-table').style.display = 'table';
-    }
+    document.getElementById('stat-gifts').textContent =
+        '$' + ((data.total_gifts ?? 0)/1000).toFixed(1) + 'K';
 
-    // 페이지 로드 시 데이터 조회
-    window.addEventListener('load', loadAllData);
+    document.getElementById('stat-tx').textContent =
+        data.transaction_count ?? 0;
 
-    // 30초마다 자동 새로고침
-    setInterval(loadAllData, 30000);
+    document.getElementById('stat-avg').textContent =
+        '$' + (data.average_gift ?? 0).toFixed(0);
+}
+
+function displayWhales(whales = []){
+
+    const tbody = document.getElementById('whales-body');
+
+    tbody.innerHTML = whales.map((w,i)=>`
+        <tr>
+            <td>${i+1}</td>
+            <td>${w.nickname || w.name || '-'}</td>
+            <td>${w.country || '-'}</td>
+            <td>$${(w.total_amount || 0).toLocaleString()}</td>
+        </tr>
+    `).join('');
+}
+
+function displayHosts(hosts = []){
+
+    const tbody = document.getElementById('hosts-body');
+
+    tbody.innerHTML = hosts.map((h,i)=>`
+        <tr>
+            <td>${i+1}</td>
+            <td>${h.nickname || h.name || '-'}</td>
+            <td>${h.country || '-'}</td>
+            <td>$${(h.total_amount || 0).toLocaleString()}</td>
+        </tr>
+    `).join('');
+}
+
+function displayTimeline(data = []){
+
+    const timeline = document.getElementById('timeline');
+
+    timeline.innerHTML = data.map(tx=>`
+        <div class="timeline-item">
+            ${tx.whale_nickname || '-'}
+            →
+            ${tx.host_nickname || '-'}
+            :
+            $${(tx.amount || 0).toLocaleString()}
+        </div>
+    `).join('');
+}
+
+function displayCountryStats(data = []){
+
+    const tbody = document.getElementById('stats-body');
+
+    tbody.innerHTML = data.map(c=>`
+        <tr>
+            <td>${c.country || '-'}</td>
+            <td>${c.whale_count || 0}</td>
+            <td>$${(c.total_gifts || 0).toLocaleString()}</td>
+        </tr>
+    `).join('');
+}
+
+window.addEventListener('load', loadAllData);
+
+setInterval(loadAllData,30000);
 </script>
+
+</body>
+</html>
 ```
