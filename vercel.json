@@ -1,0 +1,6 @@
+// vercel.json - Vercel 배포 설정
+{
+  "buildCommand": "npm run build",
+  "outputDirectory": "out",
+  "framework": "nextjs"
+}
