@@ -1,473 +1,155 @@
-<!DOCTYPE html>
-<html lang="ko">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>🐋 JMC Global Whale Intelligence - 실시간</title>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
+```html
+<script>
+    const API_URL = 'https://mixbyjmc.pythonanywhere.com/api';
+
+    async function loadAllData() {
+        try {
+            document.getElementById('status').textContent = '🔄 데이터 로딩 중...';
+
+            // 통계
+            const statsRes = await fetch(`${API_URL}/stats/summary`);
+            const stats = await statsRes.json();
+            updateStats(stats);
+
+            // 고래
+            const whalesRes = await fetch(`${API_URL}/whales/ranking?limit=10`);
+            const whalesData = await whalesRes.json();
+            displayWhales(whalesData);
+
+            // 호스트
+            const hostsRes = await fetch(`${API_URL}/hosts/ranking`);
+            const hostsData = await hostsRes.json();
+            displayHosts(hostsData);
+
+            // 타임라인
+            const timelineRes = await fetch(`${API_URL}/analysis/timeline?limit=10`);
+            const timelineData = await timelineRes.json();
+            displayTimeline(timelineData);
+
+            // 국가별 분석
+            const countryRes = await fetch(`${API_URL}/stats/by-country`);
+            const countryData = await countryRes.json();
+            displayCountryStats(countryData);
+
+            document.getElementById('status').textContent =
+                '✅ 데이터 로드 완료!';
+
+            document.getElementById('status').style.background =
+                'var(--success)';
+
+        } catch (error) {
+
+            console.error('오류:', error);
+
+            document.getElementById('status').textContent =
+                '❌ 데이터 로드 실패: ' + error.message;
+
+            document.getElementById('status').style.background =
+                'var(--warning)';
         }
+    }
 
-        :root {
-            --primary: #001f3f;
-            --secondary: #0074d9;
-            --success: #2ecc40;
-            --warning: #ff4136;
-            --light: #f5f5f5;
-            --dark: #333;
-            --border: #ddd;
-        }
+    function updateStats(data = {}) {
+        document.getElementById('stat-whales').textContent =
+            data.active_whales ?? 0;
 
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: var(--light);
-            color: var(--dark);
-            line-height: 1.6;
-        }
+        document.getElementById('stat-gifts').textContent =
+            `$${((data.total_gifts ?? 0) / 1000).toFixed(1)}K`;
 
-        .navbar {
-            background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
-            color: white;
-            padding: 1.5rem 2rem;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
-            position: sticky;
-            top: 0;
-            z-index: 100;
-        }
+        document.getElementById('stat-tx').textContent =
+            data.transaction_count ?? 0;
 
-        .navbar h1 {
-            font-size: 24px;
-            margin-bottom: 0.5rem;
-        }
+        document.getElementById('stat-avg').textContent =
+            `$${(data.average_gift ?? 0).toFixed(0)}`;
+    }
 
-        .subtitle {
-            font-size: 12px;
-            opacity: 0.9;
-        }
+    function displayWhales(whales = []) {
+        const tbody = document.getElementById('whales-body');
 
-        .container {
-            max-width: 1400px;
-            margin: 0 auto;
-            padding: 2rem;
-        }
+        tbody.innerHTML = whales.map((w, idx) => `
+            <tr>
+                <td>${idx === 0 ? '👑' : idx + 1}</td>
+                <td><strong>${w.nickname || w.name || '-'}</strong></td>
+                <td>${w.country || '-'}</td>
+                <td>$${(w.total_gifts_30d || w.total_amount || 0).toLocaleString()}</td>
+                <td>${w.host_count || 0}</td>
+                <td>$${(w.average_gift || 0).toFixed(0)}</td>
+            </tr>
+        `).join('');
 
-        .status {
-            background: var(--success);
-            color: white;
-            padding: 1rem;
-            border-radius: 4px;
-            margin-bottom: 2rem;
-            text-align: center;
-            font-weight: 600;
-        }
+        document.getElementById('whales-loading').style.display = 'none';
+        document.getElementById('whales-table').style.display = 'table';
+    }
 
-        .stats-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 1.5rem;
-            margin-bottom: 2rem;
-        }
+    function displayHosts(hosts = []) {
+        const tbody = document.getElementById('hosts-body');
 
-        .stat-card {
-            background: white;
-            padding: 1.5rem;
-            border-radius: 8px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-            text-align: center;
-            animation: slideUp 0.5s ease;
-        }
+        tbody.innerHTML = hosts.map((h, idx) => `
+            <tr>
+                <td>${idx + 1}</td>
+                <td><strong>${h.nickname || h.name || '-'}</strong></td>
+                <td>${h.country || '-'}</td>
+                <td>${h.league || '-'}</td>
+                <td>$${(h.total_received || h.total_amount || 0).toLocaleString()}</td>
+                <td>${h.whale_count || 0}</td>
+            </tr>
+        `).join('');
 
-        @keyframes slideUp {
-            from { opacity: 0; transform: translateY(20px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
+        document.getElementById('hosts-loading').style.display = 'none';
+        document.getElementById('hosts-table').style.display = 'table';
+    }
 
-        .stat-label {
-            color: #666;
-            font-size: 12px;
-            font-weight: 600;
-            margin-bottom: 0.5rem;
-        }
+    function displayTimeline(data = []) {
+        const timeline = document.getElementById('timeline');
 
-        .stat-value {
-            color: var(--primary);
-            font-size: 28px;
-            font-weight: bold;
-        }
-
-        .section {
-            background: white;
-            padding: 2rem;
-            border-radius: 8px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-            margin-bottom: 2rem;
-        }
-
-        .section h2 {
-            color: var(--primary);
-            margin-bottom: 1.5rem;
-            padding-bottom: 1rem;
-            border-bottom: 2px solid var(--light);
-        }
-
-        table {
-            width: 100%;
-            border-collapse: collapse;
-        }
-
-        thead {
-            background: var(--light);
-        }
-
-        th {
-            padding: 1rem;
-            text-align: left;
-            font-weight: 600;
-            color: var(--dark);
-            border-bottom: 2px solid var(--border);
-        }
-
-        td {
-            padding: 0.75rem 1rem;
-            border-bottom: 1px solid var(--border);
-        }
-
-        tbody tr:hover {
-            background: var(--light);
-        }
-
-        .loading {
-            text-align: center;
-            padding: 2rem;
-            color: var(--primary);
-            font-weight: 600;
-        }
-
-        .error {
-            background: var(--warning);
-            color: white;
-            padding: 1rem;
-            border-radius: 4px;
-            margin-bottom: 2rem;
-        }
-
-        .timeline {
-            display: flex;
-            flex-direction: column;
-            gap: 1rem;
-        }
-
-        .timeline-item {
-            padding: 1rem;
-            background: var(--light);
-            border-left: 4px solid var(--secondary);
-            border-radius: 4px;
-            animation: slideUp 0.5s ease;
-        }
-
-        .timeline-item .time {
-            color: #666;
-            font-size: 12px;
-            font-weight: 600;
-            margin-bottom: 0.5rem;
-        }
-
-        .timeline-item .content {
-            display: flex;
-            gap: 0.5rem;
-            align-items: center;
-            flex-wrap: wrap;
-        }
-
-        .whale-name {
-            color: var(--secondary);
-            font-weight: 600;
-        }
-
-        .host-name {
-            color: var(--primary);
-            font-weight: 600;
-        }
-
-        .amount {
-            color: var(--success);
-            font-weight: 600;
-            margin-left: auto;
-        }
-
-        .refresh-btn {
-            background: var(--secondary);
-            color: white;
-            border: none;
-            padding: 0.75rem 1.5rem;
-            border-radius: 4px;
-            cursor: pointer;
-            font-weight: 600;
-            margin-bottom: 2rem;
-        }
-
-        .refresh-btn:hover {
-            background: var(--primary);
-        }
-
-        .footer {
-            text-align: center;
-            padding: 2rem;
-            color: #999;
-            font-size: 12px;
-        }
-
-        @media (max-width: 768px) {
-            .container {
-                padding: 1rem;
-            }
-
-            .stats-grid {
-                grid-template-columns: 1fr;
-            }
-
-            table {
-                font-size: 12px;
-            }
-
-            th, td {
-                padding: 0.5rem;
-            }
-
-            .amount {
-                margin-left: 0;
-            }
-        }
-    </style>
-</head>
-<body>
-    <div class="navbar">
-        <h1>🐋 JMC Global Whale Intelligence</h1>
-        <p class="subtitle">TikTok Live 글로벌 고래 데이터 - 실시간 분석 플랫폼 (실제 SQLite 데이터베이스)</p>
-    </div>
-
-    <div class="container">
-        <div class="status" id="status">
-            🔄 데이터 로딩 중...
-        </div>
-
-        <button class="refresh-btn" onclick="loadAllData()">🔄 새로고침</button>
-
-        <!-- 통계 -->
-        <div class="stats-grid" id="stats-container">
-            <div class="stat-card">
-                <div class="stat-label">활성 고래</div>
-                <div class="stat-value" id="stat-whales">-</div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-label">총 기부액</div>
-                <div class="stat-value" id="stat-gifts">-</div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-label">거래 건수</div>
-                <div class="stat-value" id="stat-tx">-</div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-label">평균 기부액</div>
-                <div class="stat-value" id="stat-avg">-</div>
-            </div>
-        </div>
-
-        <!-- 고래 랭킹 -->
-        <div class="section">
-            <h2>🏆 고래 랭킹 (실시간 데이터)</h2>
-            <div id="whales-loading" class="loading">📊 고래 데이터 로딩 중...</div>
-            <table id="whales-table" style="display: none;">
-                <thead>
-                    <tr>
-                        <th>순위</th>
-                        <th>닉네임</th>
-                        <th>국가</th>
-                        <th>30일 기부액</th>
-                        <th>호스트 수</th>
-                        <th>평균 기부</th>
-                    </tr>
-                </thead>
-                <tbody id="whales-body">
-                </tbody>
-            </table>
-        </div>
-
-        <!-- 호스트 랭킹 -->
-        <div class="section">
-            <h2>🎤 호스트 랭킹 (실시간 데이터)</h2>
-            <div id="hosts-loading" class="loading">📊 호스트 데이터 로딩 중...</div>
-            <table id="hosts-table" style="display: none;">
-                <thead>
-                    <tr>
-                        <th>순위</th>
-                        <th>닉네임</th>
-                        <th>국가</th>
-                        <th>리그</th>
-                        <th>총 수입</th>
-                        <th>고래 수</th>
-                    </tr>
-                </thead>
-                <tbody id="hosts-body">
-                </tbody>
-            </table>
-        </div>
-
-        <!-- 실시간 타임라인 -->
-        <div class="section">
-            <h2>⚡ 실시간 기부 타임라인</h2>
-            <div id="timeline-loading" class="loading">📊 타임라인 데이터 로딩 중...</div>
-            <div class="timeline" id="timeline" style="display: none;">
-            </div>
-        </div>
-
-        <!-- 국가별 분석 -->
-        <div class="section">
-            <h2>🌍 국가별 분석</h2>
-            <div id="stats-loading" class="loading">📊 분석 데이터 로딩 중...</div>
-            <table id="stats-table" style="display: none;">
-                <thead>
-                    <tr>
-                        <th>국가</th>
-                        <th>고래 수</th>
-                        <th>총 기부액</th>
-                        <th>거래 건수</th>
-                    </tr>
-                </thead>
-                <tbody id="stats-body">
-                </tbody>
-            </table>
-        </div>
-    </div>
-
-    <div class="footer">
-        <p>🚀 실제 SQLite 데이터베이스 | Flask REST API | http://localhost:5000</p>
-        <p>모든 데이터는 실시간으로 API에서 조회됩니다</p>
-    </div>
-
-    <script>
-        const API_URL = 'https://mixbyjmc.pythonanywhere.com/api';
-
-        async function loadAllData() {
-            try {
-                document.getElementById('status').textContent = '🔄 데이터 로딩 중...';
-                
-                // 통계
-                const statsRes = await fetch(`${API_URL}/stats/summary`);
-                const stats = await statsRes.json();
-                updateStats(stats.data);
-
-                // 고래
-                const whalesRes = await fetch(`${API_URL}/whales/ranking?limit=10`);
-                const whalesData = await whalesRes.json();
-                displayWhales(whalesData.data);
-
-                // 호스트
-                const hostsRes = await fetch(`${API_URL}/hosts/ranking`);
-                const hostsData = await hostsRes.json();
-                displayHosts(hostsData.data);
-
-                // 타임라인
-                const timelineRes = await fetch(`${API_URL}/analysis/timeline?limit=10`);
-                const timelineData = await timelineRes.json();
-                displayTimeline(timelineData.data);
-
-                // 국가별 분석
-                const countryRes = await fetch(`${API_URL}/stats/by-country`);
-                const countryData = await countryRes.json();
-                displayCountryStats(countryData.data);
-
-                document.getElementById('status').textContent = '✅ 데이터 로드 완료! 모든 데이터는 실시간 SQLite 데이터베이스에서 가져옵니다.';
-                document.getElementById('status').style.background = 'var(--success)';
-            } catch (error) {
-                console.error('오류:', error);
-                document.getElementById('status').textContent = '❌ 데이터 로드 실패: ' + error.message;
-                document.getElementById('status').style.background = 'var(--warning)';
-            }
-        }
-
-        function updateStats(data) {
-            document.getElementById('stat-whales').textContent = data.active_whales;
-            document.getElementById('stat-gifts').textContent = `$${(data.total_gifts / 1000).toFixed(1)}K`;
-            document.getElementById('stat-tx').textContent = data.transaction_count;
-            document.getElementById('stat-avg').textContent = `$${data.average_gift.toFixed(0)}`;
-        }
-
-        function displayWhales(whales) {
-            const tbody = document.getElementById('whales-body');
-            tbody.innerHTML = whales.map((w, idx) => `
-                <tr>
-                    <td>${idx === 0 ? '👑' : idx + 1}</td>
-                    <td><strong>${w.nickname}</strong></td>
-                    <td>${w.country}</td>
-                    <td>$${w.total_gifts_30d.toLocaleString()}</td>
-                    <td>${w.host_count}</td>
-                    <td>$${w.average_gift.toFixed(0)}</td>
-                </tr>
-            `).join('');
-
-            document.getElementById('whales-loading').style.display = 'none';
-            document.getElementById('whales-table').style.display = 'table';
-        }
-
-        function displayHosts(hosts) {
-            const tbody = document.getElementById('hosts-body');
-            tbody.innerHTML = hosts.map((h, idx) => `
-                <tr>
-                    <td>${idx + 1}</td>
-                    <td><strong>${h.nickname}</strong></td>
-                    <td>${h.country}</td>
-                    <td>${h.league}</td>
-                    <td>$${h.total_received.toLocaleString()}</td>
-                    <td>${h.whale_count}</td>
-                </tr>
-            `).join('');
-
-            document.getElementById('hosts-loading').style.display = 'none';
-            document.getElementById('hosts-table').style.display = 'table';
-        }
-
-        function displayTimeline(data) {
-            const timeline = document.getElementById('timeline');
-            timeline.innerHTML = data.map(tx => `
-                <div class="timeline-item">
-                    <div class="time">⏰ ${new Date(tx.timestamp).toLocaleTimeString()}</div>
-                    <div class="content">
-                        <span class="whale-name">${tx.whale_nickname}</span>
-                        <span>→</span>
-                        <span class="host-name">${tx.host_nickname}</span>
-                        <span class="amount">$${tx.amount.toLocaleString()}</span>
-                    </div>
+        timeline.innerHTML = data.map(tx => `
+            <div class="timeline-item">
+                <div class="time">
+                    ⏰ ${tx.timestamp ? new Date(tx.timestamp).toLocaleTimeString() : '-'}
                 </div>
-            `).join('');
 
-            document.getElementById('timeline-loading').style.display = 'none';
-            timeline.style.display = 'flex';
-        }
+                <div class="content">
+                    <span class="whale-name">
+                        ${tx.whale_nickname || '-'}
+                    </span>
 
-        function displayCountryStats(data) {
-            const tbody = document.getElementById('stats-body');
-            tbody.innerHTML = data.map(s => `
-                <tr>
-                    <td><strong>${s.country}</strong></td>
-                    <td>${s.whale_count}</td>
-                    <td>$${s.total_gifts.toLocaleString()}</td>
-                    <td>${s.tx_count}</td>
-                </tr>
-            `).join('');
+                    <span>→</span>
 
-            document.getElementById('stats-loading').style.display = 'none';
-            document.getElementById('stats-table').style.display = 'table';
-        }
+                    <span class="host-name">
+                        ${tx.host_nickname || '-'}
+                    </span>
 
-        // 페이지 로드 시 데이터 조회
-        window.addEventListener('load', loadAllData);
+                    <span class="amount">
+                        $${(tx.amount || 0).toLocaleString()}
+                    </span>
+                </div>
+            </div>
+        `).join('');
 
-        // 30초마다 자동 새로고침
-        setInterval(loadAllData, 30000);
-    </script>
-</body>
-</html>
+        document.getElementById('timeline-loading').style.display = 'none';
+        timeline.style.display = 'flex';
+    }
+
+    function displayCountryStats(data = []) {
+        const tbody = document.getElementById('stats-body');
+
+        tbody.innerHTML = data.map(s => `
+            <tr>
+                <td><strong>${s.country || '-'}</strong></td>
+                <td>${s.whale_count || 0}</td>
+                <td>$${(s.total_gifts || 0).toLocaleString()}</td>
+                <td>${s.tx_count || 0}</td>
+            </tr>
+        `).join('');
+
+        document.getElementById('stats-loading').style.display = 'none';
+        document.getElementById('stats-table').style.display = 'table';
+    }
+
+    // 페이지 로드 시 데이터 조회
+    window.addEventListener('load', loadAllData);
+
+    // 30초마다 자동 새로고침
+    setInterval(loadAllData, 30000);
+</script>
+```
